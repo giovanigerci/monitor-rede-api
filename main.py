@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 import subprocess
 import datetime
+import os
 
 app = FastAPI(tittle="Monitor de Rede")
+PING_TARGET = os.getenv("PING_TARGET", "8.8.8.8")
 
 @app.get("/")
 def root():
@@ -18,7 +20,7 @@ def network():
 
 	gateway = subprocess.getoutput("ip route | grep default")
 
-	ping = subprocess.getoutput("ping -c 1 8.8.8.8")
+	ping = subprocess.getoutput(f"ping -c 1 {PING_TARGET}")
 
 	return {
 		"timestamp": datetime.datetime.now().isoformat(),
