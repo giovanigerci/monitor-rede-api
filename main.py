@@ -66,7 +66,20 @@ def ping_target():
 		"Iniciando ping para %s",
 		PING_TARGET
 	)
-	output = run_command(f"ping -c 1 {PING_TARGET}")
+
+	try:
+		output = run_command(f"ping -c 1 {PING_TARGET}")
+	except Exception as e:
+		logger.error(
+			"Erro ao executar ping para %s: %s",
+			PING_TARGET,
+			e
+			)
+		return{
+			"target": PING_TARGET,
+			"success": False,
+			"time_ms": None
+		}
 
 	if "time=" in output:
 		for line in output.splitlines():
