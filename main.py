@@ -1,10 +1,30 @@
 from fastapi import FastAPI
 import subprocess
-import datetime
+from datetime import datetime
 import os
+import logging
 
 app = FastAPI(tittle="Monitor de Rede")
 PING_TARGET = os.getenv("PING_TARGET", "8.8.8.8")
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("api")
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+	tempo_inicio = datetime.now()
+	response = await call_next(request)
+	tempo_final = datetime.now()
+	duracao = (tempo_final - tempo_inicio)
+	duracao_ms = round (duracao.total_seconds() * 1000, 2)	 #Serve para colocar o tempo em milissegundos e arredondar para duas casas depois da virgula
+	logger.info(
+		" | Método: %s | recebido da URL: %s | Status da Resposta: %s | Tempo de duração: %sms|",
+		request.method,
+		request.url.path,
+		response.status_code,
+		duracao_ms
+	)
+	return response
 
 def run_command(command: str) -> str:
 	result = subprocess.run(
@@ -40,20 +60,31 @@ def get_gateway():
 		
 	return None
 
-
+logger = logging.getLogger("ping")
 def ping_target():
+	logger.info(
+		"Iniciando ping para %s",
+		PING_TARGET
+	)
 	output = run_command(f"ping -c 1 {PING_TARGET}")
 
 	if "time=" in output:
 		for line in output.splitlines():
 			if "time=" in line:
 				time_ms = line.split("time=")[1].split(" ")[0]
+
+				logger.info(
+					"Ping bem sucedido para %s (%sms)",
+					PING_TARGET,
+					time_ms
+				)
+
 				return {
 					"target": PING_TARGET,
 					"success": True,
-					"time_ms": float(time_ms)
+					"time_ms": float(time_ms),
 				}
-
+	logger.warning("Ping não efetuado")
 	return{
 		"target": PING_TARGET,
 		"success": False,
@@ -72,7 +103,7 @@ def health():
 @app.get("/network")
 def network():
 	return {
-		"timestamp": datetime.datetime.now().isoformat(),
+		"timestamp": datetime.now().isoformat(),
 		"ip_info": get_ip_info(),
 		"gateway": get_gateway(),
 		"ping": ping_target()
